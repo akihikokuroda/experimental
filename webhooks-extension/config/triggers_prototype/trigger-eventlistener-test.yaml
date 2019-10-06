@@ -1,0 +1,25 @@
+apiVersion: tekton.dev/v1alpha1
+kind: EventListener
+metadata:
+  name: monitor-task-eventlistener
+spec:
+  serviceAccountName: 
+  triggers:
+  - name: monitor-task
+    binding:
+      name: monitor-task-binding
+    template:
+      name: monitor-task-template
+    params:
+    - name: message
+      value: Hello from the Triggers EventListener!
+    - name: gitsecretname
+      value: github-secrets
+    - name: gitsecretkeyname
+      value: accessToken
+    - name: commentsuccess
+      value: "Success"
+    - name: commentfailure
+      value: "Failed"
+    - name: dashboardurl
+      value: "http://localhost:9097/"

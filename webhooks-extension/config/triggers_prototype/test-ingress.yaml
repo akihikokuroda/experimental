@@ -1,0 +1,12 @@
+        apiVersion: extensions/v1beta1
+        kind: Ingress
+        metadata:
+          name: test-ingress
+        spec:
+          rules:
+          - host: test.192.168.1.110.nip.io
+            http:
+              paths:
+              - backend:
+                  serviceName: monitor-task-eventlistener-sb9g9-7554db554f-mvw2x 
+                  servicePort: 8080
