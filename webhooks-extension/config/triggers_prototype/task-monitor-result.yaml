@@ -41,8 +41,7 @@ spec:
   - name: check
     image: maiwj/kubernetes-python-client:latest
     env:
-      - name: PIPELINERUNS
-        #value: $(inputs.params.pipelineruns)
+      - name: EVENTID
         valueFrom:
           fieldRef:
             fieldPath: metadata.labels['tekton.dev/triggers-eventid']
