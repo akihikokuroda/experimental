@@ -86,11 +86,12 @@ spec:
       resp = requests.post(statusurl, json.dumps(pendingData), headers = {'Content-Type': 'application/json', 'Authorization': "Bearer $GITHUBTOKEN"})
       print(resp)
       # End of code to replace
+
       if not "$URL".startswith("http"):
         pipelineRunURLPrefix = "http://" + "$URL"
       else:
         pipelineRunURLPrefix = "$URL"
-      runsToCheck = "$PIPELINERUNS".split(",")
+      labelToCheck = "$EVENTID"
       runsPassed = []
       runsFailed = []
       runsIncomplete = []
@@ -98,24 +99,31 @@ spec:
       i = range(180)
       for x in i:
           time.sleep( 10 )
-          if len(runsToCheck) > 0:
-            for entry in runsToCheck:
-              pr, namespace, pipeline = entry.split(":")
-              pr = pr.strip()
-              namespace = namespace.strip()
-              pipeline = pipeline.strip()
+          runsPassed = []
+          runsFailed = []
+          runsIncomplete = []
+          failed = 0
+          api_response = api_instance.list_cluster_custom_object("tekton.dev", "v1alpha1", "pipelineruns", label_selector=labelToCheck)
+          if len(api_response["items"]) > 0:
+            for entry in api_response["items"]:
+              pr = entry["metadata"]["name"]
+              namespace = entry["metadata"]["namespace"]
+              pipeline = entry["spec"]["pipelineRef"]["name"]
               link = pipelineRunURLPrefix + "/#/namespaces/" + namespace + "/pipelines/" + pipeline + "/runs/" + pr
               print("Checking pipelinerun " + pr + " in namespace " + namespace)
-              output = api_instance.get_namespaced_custom_object("tekton.dev", "v1alpha1", namespace, "pipelineruns", pr)
-              if output["status"]["conditions"][0]["status"] == u'True' and output["status"]["conditions"][0]["type"] == u'Succeeded':
+              if entry["status"]["conditions"][0]["status"] == u'True' and entry["status"]["conditions"][0]["type"] == u'Succeeded':
                 print("Success - pipelinerun " + pr + " in namespace " + namespace)
-                runsToCheck.remove(entry)
                 runsPassed.append("[**$COMMENT_SUCCESS**](" + link + ") | " + pipeline + " | " +  pr + " | " + namespace)
-              if output["status"]["conditions"][0]["status"] == u'False' and output["status"]["conditions"][0]["type"] == u'Succeeded':
+                continue
+              if entry["status"]["conditions"][0]["status"] == u'False' and entry["status"]["conditions"][0]["type"] == u'Succeeded':
                 failed =+ 1
                 print("Failed - pipelinerun " + pr + " in namespace " + namespace)
-                runsToCheck.remove(entry)
                 runsFailed.append("[**$COMMENT_FAILURE**](" + link + ") | " + pipeline + " | " + pr + " | " + namespace)
+                continue
+              link = pipelineRunURLPrefix + "/#/namespaces/" + namespace + "/pipelines/" + pipeline + "/runs/" + pr
+              runsIncomplete.append("[**??????**](" + link + ") | " + pipeline + " | " + pr + " | " + namespace)
+            if len(runsIncomplete) == 0:
+              break
           else:
             break
       gitPRdescription = "All pipelines succeeded!"
@@ -123,18 +131,10 @@ spec:
       if failed > 0:
         gitPRdescription = str(failed) + " pipeline(s) failed!"
         gitPRcode = "failure"
-      if len(runsToCheck) > 0:
+      if len(runsIncomplete) > 0:
         print("Some pipelineruns had not completed when the monitor reached its timeout")
         gitPRdescription = "timed out monitoring pipeline runs"
         gitPRcode = "error"
-        for entry in runsToCheck:
-          pr, namespace, pipeline = entry.split(":")
-          pr = pr.strip()
-          namespace = namespace.strip()
-          pipeline = pipeline.strip()
-          print("Still Running - pipelinerun " + pr + " in namespace " + namespace)
-          link = pipelineRunURLPrefix + "/#/namespaces/" + namespace + "/pipelines/" + pipeline + "/runs/" + pr
-          runsIncomplete.append("[**??????**](" + link + ") | " + pipeline + " | " + pr + " | " + namespace)
       results = runsPassed + runsFailed + runsIncomplete
       comment = ("## Tekton Status Report \n\n"
                  "Status | Pipeline | PipelineRun | Namespace\n"
