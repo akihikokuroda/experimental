@@ -3,7 +3,7 @@ kind: EventListener
 metadata:
   name: monitor-task-eventlistener
 spec:
-  serviceAccountName: 
+  serviceAccountName: tekton-triggers-controller 
   triggers:
   - name: monitor-task
     binding:
@@ -11,8 +11,6 @@ spec:
     template:
       name: monitor-task-template
     params:
-    - name: message
-      value: Hello from the Triggers EventListener!
     - name: gitsecretname
       value: github-secrets
     - name: gitsecretkeyname

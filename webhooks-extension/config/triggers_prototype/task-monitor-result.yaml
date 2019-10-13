@@ -10,10 +10,6 @@ spec:
       - name: pull-request
         type: pullRequest
     params:
-      #- name: pipelineruns
-      #  description: The name of the pipelineruns (and their namespace) to be monitored in format pipelinerun1:namespace1, pipelinerun2:namespace2
-      #  default: default pipelinerun
-      #  type: string
       - name: commentsuccess
         description: The text of the success comment
         default: "Success"
@@ -64,7 +60,7 @@ spec:
     - |
       set -e
       cat <<EOF | python
-      import time, os, json, requests, pprint
+      import time, os, json, requests, pprint, shutil
       from kubernetes import client, config
       config.load_incluster_config()
       api_instance = client.CustomObjectsApi(client.ApiClient(client.Configuration()))
@@ -90,7 +86,7 @@ spec:
         pipelineRunURLPrefix = "http://" + "$URL"
       else:
         pipelineRunURLPrefix = "$URL"
-      labelToCheck = "$EVENTID"
+      labelToCheck = "tekton.dev/triggers-eventid=$EVENTID"
       runsPassed = []
       runsFailed = []
       runsIncomplete = []
@@ -139,7 +135,9 @@ spec:
                  "Status | Pipeline | PipelineRun | Namespace\n"
                  ":----- | :------- | :--------------- | :--------\n"
                  ) + "\n".join(results)
-      handle = open("/workspace/pull-request/comments/newcomment.json", 'w')
+      if not os.path.exists("/workspace/output/pull-request/comments"):
+        os.makedirs("/workspace/output/pull-request/comments")
+      handle = open("/workspace/output/pull-request/comments/newcomment.json", 'w')
       handle.write(comment)
       handle.close()
       if not "$URL".startswith("http"):
@@ -148,8 +146,16 @@ spec:
         detailsURL = "$URL" + "/#/pipelineruns"
       print("Set details url to: " + detailsURL)
       status = json.dumps(dict(code=gitPRcode, description=gitPRdescription, id=gitPRcontext, url=detailsURL))
-      handle = open("/workspace/pull-request/status/newstatus.json", 'w')
+      if not os.path.exists("/workspace/output/pull-request/status"):
+        os.makedirs("/workspace/output/pull-request/status")
+      handle = open("/workspace/output/pull-request/status/newstatus.json", 'w')
       handle.write(status)
       handle.close()
+      if not os.path.exists("/workspace/output/pull-request/labels"):
+        os.makedirs("/workspace/output/pull-request/labels")
+      if not os.path.exists("/workspace/output/pull-request/"):
+        os.makedirs("/workspace/output/pull-request/")
+      shutil.copyfile("/workspace/pull-request/base.json","/workspace/output/pull-request/base.json") 
+      shutil.copyfile("/workspace/pull-request/base.json","/workspace/output/pull-request/head.json") 
       EOF
 ---

@@ -5,7 +5,7 @@ metadata:
 spec:
   params:
   - name: pullrequesturl
-    value: $(event.PullRequest.HTMLURL)
+    value: $(body.pull_request.html_url)
 
 ---
 
@@ -69,6 +69,11 @@ spec:
           value: $(params.dashboardurl)
         - name: secret
           value: $(params.gitsecretname)
+        resources:
+        - name: pull-request
+          resourceRef:
+            name: pull-request-$(uid)
+      outputs:
         resources:
         - name: pull-request
           resourceRef:
